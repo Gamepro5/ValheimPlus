@@ -836,6 +836,53 @@
 			}
 		}
 	},
+	"FrigidKiln": {
+		"description": "",
+		"icon": "fa fa-fire",
+		"description_website": "Change the in-game behavior of the frigid kiln and modify its values.",
+		"entries": {
+			"enabled": {
+				"description": "Change false to true to enable this section",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"productionSpeed": {
+				"description": "The time it takes for the frigid kiln to produce a single frozen fuel in seconds.",
+				"defaultValue": "30",
+				"defaultType": "float"
+			},
+			"maximumIce": {
+				"description": "Maximum amount of ice in a frigid kiln",
+				"defaultValue": "25",
+				"defaultType": "int"
+			},
+			"iceUsedPerProduct": {
+				"description": "The total amount of ice used to produce a single frozen fuel.",
+				"defaultValue": "5",
+				"defaultType": "int"
+			},
+			"autoDeposit": {
+				"description": "Instead of dropping the items, they will be placed inside nearby chests.",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"autoFuel": {
+				"description": "Pull ice from nearby chests.",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"ignorePrivateAreaCheck": {
+				"description": "Change true to false to enable private area check when looking for chests.",
+				"defaultValue": "true",
+				"defaultType": "bool"
+			},
+			"autoRange": {
+				"description": "The range of chest detection for the auto deposit and auto fuel features. (Maximum is 50)",
+				"defaultValue": "10",
+				"defaultType": "float"
+			}
+		}
+	},
 	"Furnace": {
 		"description": "",
 		"icon": "fad fa-fireplace",

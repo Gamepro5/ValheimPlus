@@ -58,12 +58,19 @@ namespace ValheimPlus.GameClasses
                 __instance.m_maxFuel = Configuration.Current.EitrRefinery.maximumSap;
                 __instance.m_secPerProduct = Configuration.Current.EitrRefinery.productionSpeed;
             }
+            else if (__instance.m_name.Equals(SmelterDefinitions.FrigidKilnName) && Configuration.Current.FrigidKiln.IsEnabled)
+            {
+                __instance.m_maxFuel = Configuration.Current.FrigidKiln.maximumIce;
+                __instance.m_fuelPerProduct = Configuration.Current.FrigidKiln.iceUsedPerProduct;
+                __instance.m_secPerProduct = Configuration.Current.FrigidKiln.productionSpeed;
+            }
         }
 
         private static readonly string[] AutoDepositSmelterNames =
         {
             SmelterDefinitions.KilnName, SmelterDefinitions.SmelterName, SmelterDefinitions.FurnaceName,
-            SmelterDefinitions.WindmillName, SmelterDefinitions.SpinningWheelName, SmelterDefinitions.EitrRefineryName
+            SmelterDefinitions.WindmillName, SmelterDefinitions.SpinningWheelName, SmelterDefinitions.EitrRefineryName,
+            SmelterDefinitions.FrigidKilnName
         };
 
         // Hold the first update, catch-up included, until nearby chests have loaded to receive the output.
@@ -89,6 +96,7 @@ namespace ValheimPlus.GameClasses
             if (name.Equals(SmelterDefinitions.WindmillName)) return config.Windmill.autoRange;
             if (name.Equals(SmelterDefinitions.SpinningWheelName)) return config.SpinningWheel.autoRange;
             if (name.Equals(SmelterDefinitions.EitrRefineryName)) return config.EitrRefinery.autoRange;
+            if (name.Equals(SmelterDefinitions.FrigidKilnName)) return config.FrigidKiln.autoRange;
             return 0f;
         }
 
@@ -101,6 +109,7 @@ namespace ValheimPlus.GameClasses
             if (name.Equals(SmelterDefinitions.WindmillName)) return config.Windmill.IsEnabled && config.Windmill.autoDeposit;
             if (name.Equals(SmelterDefinitions.SpinningWheelName)) return config.SpinningWheel.IsEnabled && config.SpinningWheel.autoDeposit;
             if (name.Equals(SmelterDefinitions.EitrRefineryName)) return config.EitrRefinery.IsEnabled && config.EitrRefinery.autoDeposit;
+            if (name.Equals(SmelterDefinitions.FrigidKilnName)) return config.FrigidKiln.IsEnabled && config.FrigidKiln.autoDeposit;
             return false;
         }
     }
@@ -137,6 +146,10 @@ namespace ValheimPlus.GameClasses
             if (__instance.m_name.Equals(SmelterDefinitions.EitrRefineryName) && Configuration.Current.EitrRefinery.IsEnabled && Configuration.Current.EitrRefinery.autoDeposit)
             {
                 return spawn(Helper.Clamp(Configuration.Current.EitrRefinery.autoRange, 1, 50), Configuration.Current.EitrRefinery.ignorePrivateAreaCheck);
+            }
+            if (__instance.m_name.Equals(SmelterDefinitions.FrigidKilnName) && Configuration.Current.FrigidKiln.IsEnabled && Configuration.Current.FrigidKiln.autoDeposit)
+            {
+                return spawn(Helper.Clamp(Configuration.Current.FrigidKiln.autoRange, 1, 50), Configuration.Current.FrigidKiln.ignorePrivateAreaCheck);
             }
             bool spawn(float autoDepositRange, bool ignorePrivateAreaCheck)
             {
@@ -263,6 +276,13 @@ namespace ValheimPlus.GameClasses
                     return;
                 autoFuelRange = Configuration.Current.EitrRefinery.autoRange;
                 ignorePrivateAreaCheck = Configuration.Current.EitrRefinery.ignorePrivateAreaCheck;
+            }
+            else if (__instance.m_name.Equals(SmelterDefinitions.FrigidKilnName))
+            {
+                if (!Configuration.Current.FrigidKiln.IsEnabled || !Configuration.Current.FrigidKiln.autoFuel)
+                    return;
+                autoFuelRange = Configuration.Current.FrigidKiln.autoRange;
+                ignorePrivateAreaCheck = Configuration.Current.FrigidKiln.ignorePrivateAreaCheck;
             }
             else if (__instance.m_name.Equals(SmelterDefinitions.HotTubName))
             {
@@ -444,6 +464,7 @@ namespace ValheimPlus.GameClasses
         public static readonly string SpinningWheelName = "$piece_spinningwheel";
         public static readonly string EitrRefineryName = "$piece_eitrrefinery";
         public static readonly string HotTubName = "$piece_bathtub";
+        public static readonly string FrigidKilnName = "$piece_frostkiln";
     }
 
     public static class FurnaceDefinitions
