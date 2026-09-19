@@ -1543,6 +1543,11 @@
 				"defaultValue": "false",
 				"defaultType": "bool"
 			},
+			"allowDismantlingOfBoatsAndCarts": {
+				"description": "Allows player-built boats and carts to be dismantled with the hammer.",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
 			"wood": {
 				"description": "Reduce the loss of structural integrity by distance by %.",
 				"defaultValue": "0",

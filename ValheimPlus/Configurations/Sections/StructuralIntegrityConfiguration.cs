@@ -21,6 +21,7 @@ namespace ValheimPlus.Configurations.Sections
         private ConfigEntry<bool> disableDamageToPlayerCartsEntry;
         private ConfigEntry<bool> disableWaterDamageToPlayerBoatsEntry;
         private ConfigEntry<bool> disableWaterDamageToPlayerCartsEntry;
+        private ConfigEntry<bool> allowDismantlingOfBoatsAndCartsEntry;
 
         public float wood => woodEntry.Value;
         public float stone => stoneEntry.Value;
@@ -37,6 +38,7 @@ namespace ValheimPlus.Configurations.Sections
         public bool disableDamageToPlayerCarts => disableDamageToPlayerCartsEntry.Value;
         public bool disableWaterDamageToPlayerBoats => disableWaterDamageToPlayerBoatsEntry.Value;
         public bool disableWaterDamageToPlayerCarts => disableWaterDamageToPlayerCartsEntry.Value;
+        public bool allowDismantlingOfBoatsAndCarts => allowDismantlingOfBoatsAndCartsEntry.Value;
 
         public override void Bind(ConfigFile config)
         {
@@ -72,6 +74,8 @@ namespace ValheimPlus.Configurations.Sections
                 "Disables water force damage to all player built boats.");
             disableWaterDamageToPlayerCartsEntry = Bind(config, Section, "disableWaterDamageToPlayerCarts", false,
                 "Disables water force damage to all player built carts.");
+            allowDismantlingOfBoatsAndCartsEntry = Bind(config, Section, "allowDismantlingOfBoatsAndCarts", false,
+                "Allows player-built boats and carts to be dismantled with the hammer.");
         }
     }
 }
