@@ -38,7 +38,7 @@ namespace ValheimPlus.Configurations.Sections
                 "Adds additional players to the difficulty calculation in multiplayer unrelated to the actual amount.\nThis option is disabled if its set to 0.");
             setFixedPlayerCountToEntry = Bind(config, Section, "setFixedPlayerCountTo", 0,
                 "Sets the nearby player count always to this value + extraPlayerCountNearby.\nThis option is disabled if its set to 0.");
-            difficultyScaleRangeEntry = Bind(config, Section, "difficultyScaleRange", 200,
+            difficultyScaleRangeEntry = Bind(config, Section, "difficultyScaleRange", 100, 1, 20000,
                 "The range in meters at which other players count towards nearby players for the difficulty scale.");
             disablePortalsEntry = Bind(config, Section, "disablePortals", false,
                 "If you set this to true, all portals will be disabled.");

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -92,7 +91,7 @@ namespace ValheimPlus.GameClasses
         {
             if (!Configuration.Current.Game.IsEnabled) return instructions;
 
-            float range = Math.Min(Configuration.Current.Game.difficultyScaleRange, 2);
+            float range = Configuration.Current.Game.difficultyScaleRange;
 
             var il = instructions.ToList();
             for (int i = 0; i < il.Count; i++)
