@@ -196,8 +196,12 @@ namespace ValheimPlus
             Logger.LogDebug("Applying patches.");
             try
             {
-                // handles annotations
-                Harmony.PatchAll();
+                // handles annotations, minus the merged ServerSync library's own patches, which
+                // ConfigSyncGlue owns so that unpatching cannot take the config transport with it
+                foreach (var type in AccessTools.GetTypesFromAssembly(typeof(ValheimPlusPlugin).Assembly))
+                {
+                    if (!ConfigSyncGlue.IsServerSyncType(type)) Harmony.CreateClassProcessor(type).Patch();
+                }
 
                 // manual patches that only should run in certain conditions, that otherwise would just cause errors.
 

@@ -16,6 +16,9 @@ namespace ValheimPlus.Configurations
         /// <summary>The ServerSync method that applies a received config package.</summary>
         private const string HandleRpcName = "HandleConfigSyncRPC";
 
+        /// <summary>Namespace of the ServerSync library, which ILRepack merges into this assembly.</summary>
+        private const string ServerSyncNamespace = "ServerSync";
+
         /// <summary>
         /// Own instance, so reapplying the mod's patches does not tear out the hook asking for it.
         /// </summary>
@@ -40,7 +43,37 @@ namespace ValheimPlus.Configurations
 
             configSync.SourceOfTruthChanged += value => SourceOfTruthChanged?.Invoke(value);
 
+            PatchServerSync();
             HookConfigApplied();
+        }
+
+        /// <summary>
+        /// Applies ServerSync's own annotated patches on this instance. ServerSync is merged into
+        /// this assembly, so the mod's <see cref="Harmony.PatchAll()"/> would otherwise claim them
+        /// and <see cref="ValheimPlusPlugin.UnpatchSelf"/> would tear out its transport, including
+        /// ZRpc.HandlePackage while a config package is being handled on that very stack.
+        /// </summary>
+        private static void PatchServerSync()
+        {
+            try
+            {
+                foreach (var type in AccessTools.GetTypesFromAssembly(typeof(ConfigSync).Assembly))
+                {
+                    if (IsServerSyncType(type)) Harmony.CreateClassProcessor(type).Patch();
+                }
+            }
+            catch (Exception e)
+            {
+                PatchLog.Failed(nameof(PatchServerSync),
+                    "Server config syncing will not work.", e);
+            }
+        }
+
+        /// <summary>Whether a type belongs to the merged ServerSync library rather than the mod.</summary>
+        internal static bool IsServerSyncType(Type type)
+        {
+            var ns = type.Namespace;
+            return ns == ServerSyncNamespace || ns?.StartsWith(ServerSyncNamespace + ".") == true;
         }
 
         /// <summary>

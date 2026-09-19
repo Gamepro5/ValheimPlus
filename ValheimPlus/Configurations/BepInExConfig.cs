@@ -1,4 +1,5 @@
-﻿using BepInEx.Bootstrap;
+﻿using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using IniParser;
 using IniParser.Model;
@@ -36,6 +37,9 @@ namespace ValheimPlus.Configurations
 
         /// <summary>Whether a config package has already been taken this connection.</summary>
         private static bool syncedOnce;
+
+        /// <summary>Whether a rebuild is already queued for the next frame.</summary>
+        private static bool reapplyQueued;
 
         /// <summary>What a legacy valheim_plus.cfg on disk is being used for.</summary>
         private enum LegacyMode
@@ -119,17 +123,31 @@ namespace ValheimPlus.Configurations
                 nameof(Configuration.Server), nameof(ServerConfiguration.serverSyncsConfig)]);
         }
 
-        /// <summary>Rebuilds the patches from the current config values.</summary>
+        /// <summary>
+        /// Rebuilds the patches from the current config values, on the next frame. Every caller
+        /// reaches this from inside a patched method, and unpatching rewrites methods in place, so
+        /// running it here would swap the code out from under a live stack frame. That survives on
+        /// x64 but hangs the game on arm64, where a detour is several instructions and the
+        /// instruction cache is not coherent with the write.
+        /// </summary>
         internal static void ReapplyPatches(string reason)
         {
-            ValheimPlusPlugin.Logger.LogInfo($"{reason}, re-applying patches.");
-            ResolveModConflicts();
-            LogChangedSettings("changed since patches were last applied");
-            ValheimPlusPlugin.UnpatchSelf();
-            ValheimPlusPlugin.PatchAll();
+            if (reapplyQueued) return;
+            reapplyQueued = true;
 
-            // That was the change, so a later window close need not repeat the work.
-            ConfigurationManagerWatcher.MarkClean();
+            ThreadingHelper.Instance.StartSyncInvoke(() =>
+            {
+                reapplyQueued = false;
+
+                ValheimPlusPlugin.Logger.LogInfo($"{reason}, re-applying patches.");
+                ResolveModConflicts();
+                LogChangedSettings("changed since patches were last applied");
+                ValheimPlusPlugin.UnpatchSelf();
+                ValheimPlusPlugin.PatchAll();
+
+                // That was the change, so a later window close need not repeat the work.
+                ConfigurationManagerWatcher.MarkClean();
+            });
         }
 
         /// <summary>
