@@ -104,8 +104,7 @@ namespace ValheimPlus.GameClasses
             [UsedImplicitly]
             private static void Postfix(CookingStation __instance)
             {
-                var config = Configuration.Current.Oven;
-                if (!__instance.m_useFuel || !config.IsEnabled || !config.infiniteFuel ||
+                if (!__instance.m_useFuel || !InfiniteFuel(__instance.m_name) ||
                     __instance.m_nview?.IsValid() != true) return;
                 __instance.SetFuel(__instance.m_maxFuel);
             }
@@ -119,8 +118,7 @@ namespace ValheimPlus.GameClasses
             [UsedImplicitly]
             private static void Prefix(CookingStation __instance, ref float dt)
             {
-                var config = Configuration.Current.Oven;
-                if (!config.IsEnabled || !config.infiniteFuel) return;
+                if (!InfiniteFuel(__instance.m_name)) return;
                 dt = 0f;
             }
         }
@@ -133,8 +131,7 @@ namespace ValheimPlus.GameClasses
             [UsedImplicitly]
             private static void Prefix(CookingStation __instance)
             {
-                var config = Configuration.Current.Oven;
-                if (!__instance.m_useFuel || !config.IsEnabled || !config.autoFuel ||
+                if (!__instance.m_useFuel || !AutoFuel(__instance.m_name) ||
                     __instance.m_nview?.IsValid() != true) return;
 
                 // Only check every second:
@@ -155,8 +152,8 @@ namespace ValheimPlus.GameClasses
             var fuelItemData = __instance.m_fuelItem.m_itemData;
             int addedFuel = InventoryAssistant.RemoveItemInAmountFromChests(
                 InventoryAssistant.GetNearbyChestsForMachine(__instance.gameObject,
-                    Helper.Clamp(Configuration.Current.Oven.autoRange, 1, 50),
-                    !Configuration.Current.Oven.ignorePrivateAreaCheck),
+                    Helper.Clamp(AutoRange(__instance.m_name), 1, 50),
+                    !IgnorePrivateAreaCheck(__instance.m_name)),
                 fuelItemData, toMaxFuel);
             if (addedFuel < 1) return;
 
@@ -164,5 +161,38 @@ namespace ValheimPlus.GameClasses
             ValheimPlusPlugin.Logger.LogDebug(
                 $"Added {addedFuel} fuel({fuelItemData.m_shared.m_name}) in {__instance.m_name}");
         }
+
+        private static bool InfiniteFuel(string name)
+        {
+            var config = Configuration.Current;
+            if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.IsEnabled && config.Oven.infiniteFuel;
+            return false;
+        }
+
+        private static bool AutoFuel(string name)
+        {
+            var config = Configuration.Current;
+            if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.IsEnabled && config.Oven.autoFuel;
+            return false;
+        }
+
+        private static float AutoRange(string name)
+        {
+            var config = Configuration.Current;
+            if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.autoRange;
+            return 0f;
+        }
+
+        private static bool IgnorePrivateAreaCheck(string name)
+        {
+            var config = Configuration.Current;
+            if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.ignorePrivateAreaCheck;
+            return false;
+        }
+    }
+
+    public static class CookingStationDefinitions
+    {
+        public static readonly string OvenName = "$piece_oven";
     }
 }
