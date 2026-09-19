@@ -9,6 +9,8 @@ namespace ValheimPlus.Configurations.Sections
         private ConfigEntry<bool> noInvalidPlacementRestrictionEntry;
         private ConfigEntry<bool> noMysticalForcesPreventPlacementRestrictionEntry;
         private ConfigEntry<bool> noWeatherDamageEntry;
+        private ConfigEntry<bool> noHeavySnowDamageEntry;
+        private ConfigEntry<bool> noLavaDamageEntry;
         private ConfigEntry<float> maximumPlacementDistanceEntry;
         private ConfigEntry<float> pieceComfortRadiusEntry;
         private ConfigEntry<bool> alwaysDropResourcesEntry;
@@ -19,6 +21,8 @@ namespace ValheimPlus.Configurations.Sections
         public bool noInvalidPlacementRestriction => noInvalidPlacementRestrictionEntry.Value;
         public bool noMysticalForcesPreventPlacementRestriction => noMysticalForcesPreventPlacementRestrictionEntry.Value;
         public bool noWeatherDamage => noWeatherDamageEntry.Value;
+        public bool noHeavySnowDamage => noHeavySnowDamageEntry.Value;
+        public bool noLavaDamage => noLavaDamageEntry.Value;
         public float maximumPlacementDistance => maximumPlacementDistanceEntry.Value;
         public float pieceComfortRadius => pieceComfortRadiusEntry.Value;
         public bool alwaysDropResources => alwaysDropResourcesEntry.Value;
@@ -36,6 +40,10 @@ namespace ValheimPlus.Configurations.Sections
                 "Removes the \"Mystical forces\" building prevention and allows destruction of build objects in those areas with the hammer.");
             noWeatherDamageEntry = Bind(config, Section, "noWeatherDamage", false,
                 "Removes the weather damage from rain and water erosion.");
+            noHeavySnowDamageEntry = Bind(config, Section, "noHeavySnowDamage", false,
+                "Prevents heavy snow damage to structures.");
+            noLavaDamageEntry = Bind(config, Section, "noLavaDamage", false,
+                "Prevents lava damage to structures.");
             maximumPlacementDistanceEntry = Bind(config, Section, "maximumPlacementDistance", 8f,
                 "The maximum range in meters that you can place build objects at inside the hammer build mode.");
             pieceComfortRadiusEntry = Bind(config, Section, "pieceComfortRadius", 10f, 1f, 300f,

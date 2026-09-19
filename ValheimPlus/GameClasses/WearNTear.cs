@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using HarmonyLib;
+using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using ValheimPlus.Configurations;
+using ValheimPlus.Utility;
 using System.Diagnostics;
 using JetBrains.Annotations;
 
@@ -24,6 +28,195 @@ namespace ValheimPlus.GameClasses
             }
         }
     }
+
+    /// <summary>
+    /// Removes the heavy snow wear damage contribution in <c>WearNTear.UpdateWear</c>.
+    /// </summary>
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.UpdateWear))]
+    public static class WearNTear_UpdateWear_HeavySnowDamage_Transpiler
+    {
+        [UsedImplicitly]
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            try
+            {
+                // num += Game.instance.m_snowDamage;
+                return new CodeMatcher(il)
+                    .MatchExactlyOnce(
+                        new CodeMatch(i => i.IsLdloc()),
+                        new CodeMatch(OpCodes.Call, AccessTools.PropertyGetter(typeof(Game), nameof(Game.instance))),
+                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(Game), nameof(Game.m_snowDamage)))),
+                        new CodeMatch(OpCodes.Add))
+                    .Advance(3)
+                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateWear_HeavySnowDamage_Transpiler), nameof(Filter))))
+                    .InstructionEnumeration();
+            }
+            catch (Exception e)
+            {
+                PatchLog.Failed(
+                    nameof(WearNTear_UpdateWear_HeavySnowDamage_Transpiler),
+                    "The `noHeavySnowDamage` setting will not work; heavy snow will keep damaging structures.",
+                    e);
+                return il;
+            }
+        }
+
+        private static float Filter(float snowDamage)
+        {
+            var config = Configuration.Current.Building;
+            return config.IsEnabled && config.noHeavySnowDamage ? 0f : snowDamage;
+        }
+    }
+
+    /// <summary>
+    /// Removes the heavy snow damage visual effect in <c>WearNTear.UpdateWear</c>, so that structures
+    /// no longer show damage puffs once <c>noHeavySnowDamage</c> stops the damage itself.
+    /// </summary>
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.UpdateWear))]
+    public static class WearNTear_UpdateWear_HeavySnowDamageEffect_Transpiler
+    {
+        private static readonly EffectList NoEffects = new();
+
+        [UsedImplicitly]
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            try
+            {
+                // Game.instance.m_snowDamageEffect.Create(...);
+                return new CodeMatcher(il)
+                    .MatchExactlyOnce(
+                        new CodeMatch(OpCodes.Call, AccessTools.PropertyGetter(typeof(Game), nameof(Game.instance))),
+                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(Game), nameof(Game.m_snowDamageEffect)))))
+                    .Advance(2)
+                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateWear_HeavySnowDamageEffect_Transpiler), nameof(Filter))))
+                    .InstructionEnumeration();
+            }
+            catch (Exception e)
+            {
+                PatchLog.Failed(
+                    nameof(WearNTear_UpdateWear_HeavySnowDamageEffect_Transpiler),
+                    "The `noHeavySnowDamage` setting will still stop the damage, but structures will keep "
+                    + "showing the heavy snow damage effect.",
+                    e);
+                return il;
+            }
+        }
+
+        // An empty effect list spawns nothing, so the vanilla effect timer keeps its cadence untouched.
+        private static EffectList Filter(EffectList snowDamageEffect)
+        {
+            var config = Configuration.Current.Building;
+            return config.IsEnabled && config.noHeavySnowDamage ? NoEffects : snowDamageEffect;
+        }
+    }
+
+    /// <summary>
+    /// Removes the lava wear damage contribution in <c>WearNTear.UpdateWear</c>.
+    /// </summary>
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.UpdateWear))]
+    public static class WearNTear_UpdateWear_LavaDamage_Transpiler
+    {
+        [UsedImplicitly]
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            try
+            {
+                // float num3 = (flag ? 30f : 70f) * m_lavaValue;
+                // Zeroing that product also zeroes the `num += num3 * resist` that is its only consumer.
+                return new CodeMatcher(il)
+                    .MatchExactlyOnce(
+                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(WearNTear), nameof(WearNTear.m_lavaValue)))),
+                        new CodeMatch(OpCodes.Mul),
+                        new CodeMatch(i => i.IsStloc()))
+                    .Advance(2)
+                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateWear_LavaDamage_Transpiler), nameof(Filter))))
+                    .InstructionEnumeration();
+            }
+            catch (Exception e)
+            {
+                PatchLog.Failed(
+                    nameof(WearNTear_UpdateWear_LavaDamage_Transpiler),
+                    "The `noLavaDamage` setting will not work; lava will keep damaging structures.",
+                    e);
+                return il;
+            }
+        }
+
+        private static float Filter(float lavaDamage)
+        {
+            var config = Configuration.Current.Building;
+            return config.IsEnabled && config.noLavaDamage ? 0f : lavaDamage;
+        }
+    }
+
+    /// <summary>
+    /// Removes the lava contribution to the Ashlands damage shader, so that structures no longer look
+    /// scorched once <c>noLavaDamage</c> stops the damage itself.
+    /// </summary>
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.UpdateAshlandsMaterialValues))]
+    public static class WearNTear_UpdateAshlandsMaterialValues_LavaDamage_Transpiler
+    {
+        [UsedImplicitly]
+        [HarmonyTranspiler]
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            var il = instructions.ToList();
+            try
+            {
+                // SetAshlandsMaterialValue(Mathf.Max(m_lavaTimer, Mathf.Max(m_ashDamageTime, m_burnDamageTime)));
+                // Only this read of m_lavaTimer is filtered; the field still drives the vanilla lava damage timing.
+                return new CodeMatcher(il)
+                    .MatchExactlyOnce(
+                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(WearNTear), "m_lavaTimer"))),
+                        new CodeMatch(OpCodes.Ldarg_0),
+                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(WearNTear), "m_ashDamageTime"))))
+                    .Advance(1)
+                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateAshlandsMaterialValues_LavaDamage_Transpiler), nameof(Filter))))
+                    .InstructionEnumeration();
+            }
+            catch (Exception e)
+            {
+                PatchLog.Failed(
+                    nameof(WearNTear_UpdateAshlandsMaterialValues_LavaDamage_Transpiler),
+                    "The `noLavaDamage` setting will still stop the damage, but structures will keep "
+                    + "showing the lava damage material effect.",
+                    e);
+                return il;
+            }
+        }
+
+        private static float Filter(float lavaTimer)
+        {
+            var config = Configuration.Current.Building;
+            return config.IsEnabled && config.noLavaDamage ? 0f : lavaTimer;
+        }
+    }
+
+    internal static class WearNTearCodeMatcherExtensions
+    {
+        /// <summary>
+        /// Positions the matcher on the only occurrence of <paramref name="matches"/>, and throws when
+        /// the sequence is missing or appears more than once.
+        /// </summary>
+        internal static CodeMatcher MatchExactlyOnce(this CodeMatcher matcher, params CodeMatch[] matches)
+        {
+            matcher.MatchStartForward(matches).ThrowIfNotMatch("No match for the expected instructions.");
+
+            var duplicate = matcher.Clone().Advance(1).MatchStartForward(matches);
+            if (duplicate.IsValid)
+                throw new InvalidOperationException("More than one match for the expected instructions.");
+
+            return matcher;
+        }
+    }
+
+
 
     /// <summary>
     /// Removes the integrity check for having a connected piece to the ground.

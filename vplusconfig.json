@@ -226,7 +226,17 @@
 				"defaultType": "bool"
 			},
 			"noWeatherDamage": {
-				"description": "Removes the weather damage from rain",
+				"description": "Removes the weather damage from rain and water erosion.",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"noHeavySnowDamage": {
+				"description": "Prevents heavy snow damage to structures.",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"noLavaDamage": {
+				"description": "Prevents lava damage to structures.",
 				"defaultValue": "false",
 				"defaultType": "bool"
 			},
