@@ -1,20 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using HarmonyLib;
+using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
+using HarmonyLib;
+using JetBrains.Annotations;
 using ValheimPlus.Configurations;
 using ValheimPlus.Utility;
-using System.Diagnostics;
-using JetBrains.Annotations;
 
 namespace ValheimPlus.GameClasses
 {
     /// <summary>
     /// Disable weather damage
     /// </summary>
-    [HarmonyPatch(typeof(WearNTear), "UpdateWear")]
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.UpdateWear))]
     public static class WearNTear_UpdateWear_Patch
     {
         [UsedImplicitly]
@@ -42,15 +41,20 @@ namespace ValheimPlus.GameClasses
             var il = instructions.ToList();
             try
             {
-                // num += Game.instance.m_snowDamage;
+                var propertyGet_Game_Instance = AccessTools.PropertyGetter(typeof(Game), nameof(Game.instance));
+                var field_Game_M_SnowDamage = AccessTools.Field(typeof(Game), nameof(Game.m_snowDamage));
+                var method_Filter =
+                    AccessTools.Method(typeof(WearNTear_UpdateWear_HeavySnowDamage_Transpiler), nameof(Filter));
+
                 return new CodeMatcher(il)
                     .MatchExactlyOnce(
+                        "num += Game.instance.m_snowDamage",
                         new CodeMatch(i => i.IsLdloc()),
-                        new CodeMatch(OpCodes.Call, AccessTools.PropertyGetter(typeof(Game), nameof(Game.instance))),
-                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(Game), nameof(Game.m_snowDamage)))),
+                        new CodeMatch(OpCodes.Call, propertyGet_Game_Instance),
+                        new CodeMatch(i => i.LoadsField(field_Game_M_SnowDamage)),
                         new CodeMatch(OpCodes.Add))
                     .Advance(3)
-                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateWear_HeavySnowDamage_Transpiler), nameof(Filter))))
+                    .Insert(new CodeInstruction(OpCodes.Call, method_Filter))
                     .InstructionEnumeration();
             }
             catch (Exception e)
@@ -86,13 +90,18 @@ namespace ValheimPlus.GameClasses
             var il = instructions.ToList();
             try
             {
-                // Game.instance.m_snowDamageEffect.Create(...);
+                var propertyGet_Game_Instance = AccessTools.PropertyGetter(typeof(Game), nameof(Game.instance));
+                var field_Game_M_SnowDamageEffect = AccessTools.Field(typeof(Game), nameof(Game.m_snowDamageEffect));
+                var method_Filter =
+                    AccessTools.Method(typeof(WearNTear_UpdateWear_HeavySnowDamageEffect_Transpiler), nameof(Filter));
+
                 return new CodeMatcher(il)
                     .MatchExactlyOnce(
-                        new CodeMatch(OpCodes.Call, AccessTools.PropertyGetter(typeof(Game), nameof(Game.instance))),
-                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(Game), nameof(Game.m_snowDamageEffect)))))
+                        "Game.instance.m_snowDamageEffect.Create(...)",
+                        new CodeMatch(OpCodes.Call, propertyGet_Game_Instance),
+                        new CodeMatch(i => i.LoadsField(field_Game_M_SnowDamageEffect)))
                     .Advance(2)
-                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateWear_HeavySnowDamageEffect_Transpiler), nameof(Filter))))
+                    .Insert(new CodeInstruction(OpCodes.Call, method_Filter))
                     .InstructionEnumeration();
             }
             catch (Exception e)
@@ -127,15 +136,19 @@ namespace ValheimPlus.GameClasses
             var il = instructions.ToList();
             try
             {
-                // float num3 = (flag ? 30f : 70f) * m_lavaValue;
+                var field_WearNTear_M_LavaValue = AccessTools.Field(typeof(WearNTear), nameof(WearNTear.m_lavaValue));
+                var method_Filter =
+                    AccessTools.Method(typeof(WearNTear_UpdateWear_LavaDamage_Transpiler), nameof(Filter));
+
                 // Zeroing that product also zeroes the `num += num3 * resist` that is its only consumer.
                 return new CodeMatcher(il)
                     .MatchExactlyOnce(
-                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(WearNTear), nameof(WearNTear.m_lavaValue)))),
+                        "float num3 = (flag ? 30f : 70f) * m_lavaValue",
+                        new CodeMatch(i => i.LoadsField(field_WearNTear_M_LavaValue)),
                         new CodeMatch(OpCodes.Mul),
                         new CodeMatch(i => i.IsStloc()))
                     .Advance(2)
-                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateWear_LavaDamage_Transpiler), nameof(Filter))))
+                    .Insert(new CodeInstruction(OpCodes.Call, method_Filter))
                     .InstructionEnumeration();
             }
             catch (Exception e)
@@ -169,15 +182,23 @@ namespace ValheimPlus.GameClasses
             var il = instructions.ToList();
             try
             {
-                // SetAshlandsMaterialValue(Mathf.Max(m_lavaTimer, Mathf.Max(m_ashDamageTime, m_burnDamageTime)));
+                var field_WearNTear_M_LavaTimer =
+                    AccessTools.Field(typeof(WearNTear), nameof(WearNTear.m_lavaTimer));
+                var field_WearNTear_M_AshDamageTime = AccessTools.Field(typeof(WearNTear),
+                    nameof(WearNTear.m_ashDamageTime));
+                var method_Filter =
+                    AccessTools.Method(typeof(WearNTear_UpdateAshlandsMaterialValues_LavaDamage_Transpiler),
+                        nameof(Filter));
+
                 // Only this read of m_lavaTimer is filtered; the field still drives the vanilla lava damage timing.
                 return new CodeMatcher(il)
                     .MatchExactlyOnce(
-                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(WearNTear), "m_lavaTimer"))),
+                        "SetAshlandsMaterialValue(Mathf.Max(m_lavaTimer, Mathf.Max(m_ashDamageTime, m_burnDamageTime)))",
+                        new CodeMatch(i => i.LoadsField(field_WearNTear_M_LavaTimer)),
                         new CodeMatch(OpCodes.Ldarg_0),
-                        new CodeMatch(i => i.LoadsField(AccessTools.Field(typeof(WearNTear), "m_ashDamageTime"))))
+                        new CodeMatch(i => i.LoadsField(field_WearNTear_M_AshDamageTime)))
                     .Advance(1)
-                    .Insert(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(WearNTear_UpdateAshlandsMaterialValues_LavaDamage_Transpiler), nameof(Filter))))
+                    .Insert(new CodeInstruction(OpCodes.Call, method_Filter))
                     .InstructionEnumeration();
             }
             catch (Exception e)
@@ -202,31 +223,32 @@ namespace ValheimPlus.GameClasses
     {
         /// <summary>
         /// Positions the matcher on the only occurrence of <paramref name="matches"/>, and throws when
-        /// the sequence is missing or appears more than once.
+        /// <paramref name="pattern"/> is missing or appears more than once.
         /// </summary>
-        internal static CodeMatcher MatchExactlyOnce(this CodeMatcher matcher, params CodeMatch[] matches)
+        internal static CodeMatcher MatchExactlyOnce(this CodeMatcher matcher, string pattern,
+            params CodeMatch[] matches)
         {
-            matcher.MatchStartForward(matches).ThrowIfNotMatch("No match for the expected instructions.");
+            matcher.MatchStartForward(matches).ThrowIfNotMatch($"No match for {pattern}.");
 
             var duplicate = matcher.Clone().Advance(1).MatchStartForward(matches);
             if (duplicate.IsValid)
-                throw new InvalidOperationException("More than one match for the expected instructions.");
+                throw new InvalidOperationException($"More than one match for {pattern}.");
 
             return matcher;
         }
     }
 
-
-
     /// <summary>
     /// Removes the integrity check for having a connected piece to the ground.
     /// </summary>
-    [HarmonyPatch(typeof(WearNTear), "HaveSupport")]
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.HaveSupport))]
     public static class WearNTear_HaveSupport_Patch
     {
+        [UsedImplicitly]
         private static void Postfix(ref bool __result)
         {
-            if (Configuration.Current.StructuralIntegrity.IsEnabled && Configuration.Current.StructuralIntegrity.disableStructuralIntegrity)
+            if (Configuration.Current.StructuralIntegrity.IsEnabled &&
+                Configuration.Current.StructuralIntegrity.disableStructuralIntegrity)
             {
                 __result = true;
             }
@@ -236,7 +258,7 @@ namespace ValheimPlus.GameClasses
     /// <summary>
     /// Disable damage to player structures
     /// </summary>
-    [HarmonyPatch(typeof(WearNTear), "ApplyDamage")]
+    [HarmonyPatch(typeof(WearNTear), nameof(WearNTear.ApplyDamage))]
     public static class WearNTear_ApplyDamage_Patch
     {
         private static readonly HashSet<string> UpdateWearMethodNames = new()
@@ -244,14 +266,16 @@ namespace ValheimPlus.GameClasses
             "UpdateWear",
             "DMD<WearNTear::UpdateWear>",
         };
-        
+
+        [UsedImplicitly]
         private static bool Prefix(ref WearNTear __instance, ref float damage)
         {
             // Gets the name of the method calling the ApplyDamage method
             StackTrace stackTrace = new StackTrace();
             string callingMethod = stackTrace.GetFrame(2).GetMethod().Name;
 
-            if (!(Configuration.Current.StructuralIntegrity.IsEnabled && __instance.m_piece && __instance.m_piece.IsPlacedByPlayer() && !UpdateWearMethodNames.Contains(callingMethod)))
+            if (!(Configuration.Current.StructuralIntegrity.IsEnabled && __instance.m_piece &&
+                  __instance.m_piece.IsPlacedByPlayer() && !UpdateWearMethodNames.Contains(callingMethod)))
                 return true;
 
             if (__instance.m_piece.m_name.StartsWith("$ship"))
@@ -262,6 +286,7 @@ namespace ValheimPlus.GameClasses
 
                 return true;
             }
+
             if (__instance.m_piece.m_name.StartsWith("$tool_cart"))
             {
                 if (Configuration.Current.StructuralIntegrity.disableDamageToPlayerCarts ||
@@ -270,6 +295,7 @@ namespace ValheimPlus.GameClasses
 
                 return true;
             }
+
             return !Configuration.Current.StructuralIntegrity.disableDamageToPlayerStructures;
         }
     }
@@ -306,9 +332,9 @@ namespace ValheimPlus.GameClasses
 
             // Unknown material type, don't modify.
             if (!Multipliers.TryGetValue(__instance.m_materialType, out var multiplier)) return;
-            
+
             // scale the loss number between its current number and 0 based on the user config.
-            float clampedMultiplier = Helper.Clamp(multiplier(), 0 , 100);
+            float clampedMultiplier = Helper.Clamp(multiplier(), 0, 100);
             verticalLoss -= verticalLoss / 100 * clampedMultiplier;
             horizontalLoss -= horizontalLoss / 100 * clampedMultiplier;
         }
