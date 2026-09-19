@@ -24,6 +24,13 @@ NC='\033[0m' # No Color
 echo "This will build release files for ValheimPlus with the following options":
 echo -e "${YELLOW}Valheim Plus version        = $VERSION"
 echo -e "BepInExPack_Valheim version = $BEPINEXPACK_VALHEIM_VERSION${NC}"
+
+# CHANGELOG.md ships in the Thunderstore zip, so flag a missing entry before building.
+if ! grep -q "^## $VERSION\b" "CHANGELOG.md"; then
+    echo -e "${RED}Warning: CHANGELOG.md has no '## $VERSION' entry.${NC}" 1>&2
+    echo -e "${RED}Thunderstore will show the changelog without this release.${NC}" 1>&2
+fi
+
 while true; do
     read -p "Proceed? [y/n] " yn
     case $yn in
@@ -115,6 +122,7 @@ THUNDERSTORE_PLUGINS="$THUNDERSTORE/BepInEx/plugins"
 mkdir -p "$THUNDERSTORE_PLUGINS"
 cp "resources/images/icon.png" "$THUNDERSTORE"
 cp "README.md" "$THUNDERSTORE"
+cp "CHANGELOG.md" "$THUNDERSTORE"
 cp "$VALHEIM_PLUS_DLL" "$THUNDERSTORE_PLUGINS"
 
 cat <<EOF > "$THUNDERSTORE/manifest.json"
