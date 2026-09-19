@@ -22,6 +22,9 @@ namespace ValheimPlus.RPC
 
                 if (mapPkg == null) return;
 
+                //Map sharing is off on this server.
+                if (ServerMapData == null) return;
+
                 //Get number of explored areas
                 int exploredAreaCount = mapPkg.ReadInt();
 
