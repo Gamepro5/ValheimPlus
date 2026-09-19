@@ -213,40 +213,21 @@ namespace ValheimPlus.GameClasses
         }
     }
 
-    /// <summary>
-    /// Add ValheimPlus intro to compendium.
-    /// </summary>
-    [HarmonyPatch(typeof(Player), "OnSpawned")]
+    [HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
     public static class Player_OnSpawned_Patch
     {
-        private static void Prefix(ref Player __instance)
+        [UsedImplicitly]
+        private static void Prefix()
         {
-            //Show VPlus tutorial raven if not yet seen by the player's character.
-            Tutorial.TutorialText introTutorial = new Tutorial.TutorialText()
+            //Only sync on first spawn, not spawns in game (deaths)
+            if (VPlusMapSync.ShouldSyncOnSpawn && Configuration.Current.Map.IsEnabled &&
+                Configuration.Current.Map.shareMapProgression)
             {
-                m_label = "ValheimPlus Intro",
-                m_name = "vplus",
-                m_text = "We hope you enjoy the mod, please support our Patreon so we can continue to provide new updates!",
-                m_topic = "Welcome to Valheim+"
-            };
-
-            if (!Tutorial.instance.m_texts.Contains(introTutorial))
-            {
-                Tutorial.instance.m_texts.Add(introTutorial);
-            }
-
-            Player.m_localPlayer.ShowTutorial("vplus");
-
-            //Only sync on first spawn
-            if (VPlusMapSync.ShouldSyncOnSpawn && Configuration.Current.Map.IsEnabled && Configuration.Current.Map.shareMapProgression)
-            {
-                //Send map data to the server
-                VPlusMapSync.SendMapToServer();
                 VPlusMapSync.ShouldSyncOnSpawn = false;
+                VPlusMapSync.SendMapToServer();
             }
         }
     }
-
 
     [HarmonyPatch(typeof(Player), nameof(Player.EatFood))]
     public static class Player_EatFood_Transpiler
