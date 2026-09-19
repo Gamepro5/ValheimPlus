@@ -28,6 +28,7 @@ namespace ValheimPlus.Configurations
         public FoodConfiguration Food { get; set; }
         public FreePlacementRotationConfiguration FreePlacementRotation { get; set; }
         public FrigidKilnConfiguration FrigidKiln { get; set; }
+        public FrostFoundryConfiguration FrostFoundry { get; set; }
         public FurnaceConfiguration Furnace { get; set; }
         public GameConfiguration Game { get; set; }
         public GameClockConfiguration GameClock { get; set; }

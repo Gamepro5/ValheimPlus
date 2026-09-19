@@ -99,6 +99,23 @@ namespace ValheimPlus.GameClasses
         public static class CookingStation_Awake_Patch
         {
             /// <summary>
+            /// Applies the Frost Foundry's speed and fuel settings before it starts.
+            /// </summary>
+            [UsedImplicitly]
+            private static void Prefix(CookingStation __instance)
+            {
+                var config = Configuration.Current.FrostFoundry;
+                if (!config.IsEnabled || !__instance.m_name.Equals(CookingStationDefinitions.FrostFoundryName)) return;
+
+                __instance.m_maxFuel = config.maximumFrozenFuel;
+                foreach (var conversion in __instance.m_conversion) conversion.m_cookTime = config.productionSpeed;
+
+                // Fuel burns over time, so each one lasts its share of an item's cook time.
+                int fuelPerProduct = Math.Max(1, config.frozenFuelUsedPerProduct);
+                __instance.m_secPerFuel = Math.Max(1, (int)Math.Round(config.productionSpeed / fuelPerProduct));
+            }
+
+            /// <summary>
             /// When fire source is loaded in view, check for configurations and set its fuel to max fuel
             /// </summary>
             [UsedImplicitly]
@@ -173,6 +190,7 @@ namespace ValheimPlus.GameClasses
         {
             var config = Configuration.Current;
             if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.IsEnabled && config.Oven.autoFuel;
+            if (name.Equals(CookingStationDefinitions.FrostFoundryName)) return config.FrostFoundry.IsEnabled && config.FrostFoundry.autoFuel;
             return false;
         }
 
@@ -180,6 +198,7 @@ namespace ValheimPlus.GameClasses
         {
             var config = Configuration.Current;
             if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.autoRange;
+            if (name.Equals(CookingStationDefinitions.FrostFoundryName)) return config.FrostFoundry.autoRange;
             return 0f;
         }
 
@@ -187,6 +206,7 @@ namespace ValheimPlus.GameClasses
         {
             var config = Configuration.Current;
             if (name.Equals(CookingStationDefinitions.OvenName)) return config.Oven.ignorePrivateAreaCheck;
+            if (name.Equals(CookingStationDefinitions.FrostFoundryName)) return config.FrostFoundry.ignorePrivateAreaCheck;
             return false;
         }
     }
@@ -194,5 +214,6 @@ namespace ValheimPlus.GameClasses
     public static class CookingStationDefinitions
     {
         public static readonly string OvenName = "$piece_oven";
+        public static readonly string FrostFoundryName = "$piece_frostfoundry";
     }
 }

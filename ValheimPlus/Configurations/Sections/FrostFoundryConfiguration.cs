@@ -1,0 +1,41 @@
+﻿using BepInEx.Configuration;
+
+namespace ValheimPlus.Configurations.Sections
+{
+    public class FrostFoundryConfiguration : BaseConfig
+    {
+        private const string Section = "FrostFoundry";
+
+        private ConfigEntry<float> productionSpeedEntry;
+        private ConfigEntry<int> maximumFrozenFuelEntry;
+        private ConfigEntry<int> frozenFuelUsedPerProductEntry;
+        private ConfigEntry<bool> autoFuelEntry;
+        private ConfigEntry<bool> ignorePrivateAreaCheckEntry;
+        private ConfigEntry<float> autoRangeEntry;
+
+        public float productionSpeed => productionSpeedEntry.Value;
+        public int maximumFrozenFuel => maximumFrozenFuelEntry.Value;
+        public int frozenFuelUsedPerProduct => frozenFuelUsedPerProductEntry.Value;
+        public bool autoFuel => autoFuelEntry.Value;
+        public bool ignorePrivateAreaCheck => ignorePrivateAreaCheckEntry.Value;
+        public float autoRange => autoRangeEntry.Value;
+
+        public override void Bind(ConfigFile config)
+        {
+            BindEnabled(config, Section, false,
+                "Change false to true to enable this section.");
+            productionSpeedEntry = Bind(config, Section, "productionSpeed", 50f,
+                "The time it takes for the Frost Foundry to finish a single item in seconds.");
+            maximumFrozenFuelEntry = Bind(config, Section, "maximumFrozenFuel", 20,
+                "Maximum amount of Frozen Fuel in a Frost Foundry.");
+            frozenFuelUsedPerProductEntry = Bind(config, Section, "frozenFuelUsedPerProduct", 5,
+                "The amount of Frozen Fuel used to finish a single item.\nFuel burns over time, so this sets how long each Frozen Fuel lasts. Minimum is 1.");
+            autoFuelEntry = Bind(config, Section, "autoFuel", false,
+                "The Frost Foundry will fuel itself from nearby chests.");
+            ignorePrivateAreaCheckEntry = Bind(config, Section, "ignorePrivateAreaCheck", true,
+                "This option allows the Frost Foundry to fuel itself from chests that it doesn't share a warded area with.\nFor convenience, we recommend this to be set to true.");
+            autoRangeEntry = Bind(config, Section, "autoRange", 10f, 1f, 50f,
+                "The range of the chest detection for the auto fuel feature.\nMaximum is 50");
+        }
+    }
+}
