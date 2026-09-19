@@ -279,7 +279,8 @@ namespace ValheimPlus.GameClasses
             var method_Location_IsInsideNoBuildLocation =
                 AccessTools.Method(typeof(Location), nameof(Location.IsInsideNoBuildLocation));
             var method_ReturnFalse =
-                AccessTools.Method(typeof(Player_RemovePiece_Transpiler_PlacementRestriction), nameof(IsInsideNoBuildLocation));
+                AccessTools.Method(typeof(Player_RemovePiece_Transpiler_PlacementRestriction),
+                    nameof(IsInsideNoBuildLocation));
 
             var il = instructions.ToList();
             try
@@ -300,8 +301,7 @@ namespace ValheimPlus.GameClasses
             }
         }
 
-        [UsedImplicitly]
-        private static bool IsInsideNoBuildLocation(Vector3 unused)
+        private static bool IsInsideNoBuildLocation(Vector3 _)
         {
             return false;
         }
@@ -314,16 +314,20 @@ namespace ValheimPlus.GameClasses
         [UsedImplicitly]
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            var field_Piece_m_canBeRemoved = AccessTools.Field(typeof(Piece), nameof(Piece.m_canBeRemoved));
+            var config = Configuration.Current.StructuralIntegrity;
+            if (!config.IsEnabled || !config.allowDismantlingOfBoatsAndCarts) return instructions;
+
+            var field_Piece_M_CanBeRemoved = AccessTools.Field(typeof(Piece), nameof(Piece.m_canBeRemoved));
             var method_CanRemoveVehicleWithHammer =
-                AccessTools.Method(typeof(Player_RemovePiece_Transpiler_CartShipDismantle), nameof(CanRemoveVehicleWithHammer));
+                AccessTools.Method(typeof(Player_RemovePiece_Transpiler_CartShipDismantle),
+                    nameof(CanRemoveVehicleWithHammer));
 
             var il = instructions.ToList();
             try
             {
                 // The Piece reference is already on the stack. The later vanilla checks still run.
                 return new CodeMatcher(il)
-                    .SearchForward(inst => inst.LoadsField(field_Piece_m_canBeRemoved))
+                    .SearchForward(inst => inst.LoadsField(field_Piece_M_CanBeRemoved))
                     .ThrowIfNotMatch("No match for `Piece.m_canBeRemoved`")
                     .Set(OpCodes.Call, method_CanRemoveVehicleWithHammer)
                     .InstructionEnumeration();
@@ -338,27 +342,23 @@ namespace ValheimPlus.GameClasses
             }
         }
 
-        [UsedImplicitly]
         private static bool CanRemoveVehicleWithHammer(Piece piece)
         {
             if (piece.m_canBeRemoved) return true;
 
-            if (!Configuration.Current.StructuralIntegrity.IsEnabled ||
-                !Configuration.Current.StructuralIntegrity.allowDismantlingOfBoatsAndCarts ||
-                !piece.IsPlacedByPlayer())
-                return false;
+            var config = Configuration.Current.StructuralIntegrity;
+            if (!config.IsEnabled || !config.allowDismantlingOfBoatsAndCarts || !piece.IsPlacedByPlayer()) return false;
 
             var ship = piece.GetComponentInChildren<Ship>();
             var vagon = piece.GetComponentInChildren<Vagon>();
             if (ship == null && vagon == null) return false;
+            if (ship != null && !ship.CanBeRemoved()) return false;
+            if (vagon != null && vagon.IsAttached()) return false;
 
             var container = piece.GetComponentInChildren<Container>();
-            return (container == null || container.GetInventory().NrOfItems() == 0) &&
-                   (ship == null || ship.CanBeRemoved()) &&
-                   (vagon == null || !vagon.IsAttached());
+            return container == null || container.GetInventory().NrOfItems() == 0;
         }
     }
-
 
     [HarmonyPatch(typeof(Player), nameof(Player.GetTotalFoodValue))]
     public static class Player_GetTotalFoodValue_Transpiler
