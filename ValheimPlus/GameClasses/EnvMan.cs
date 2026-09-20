@@ -62,16 +62,21 @@ namespace ValheimPlus.GameClasses
         }
 
         /// <summary>
-        /// Hook on EnvMan init to alter total day length
+        /// Keep the day length in step with the config, which can arrive from a server after EnvMan starts.
         /// </summary>
-        [HarmonyPatch(typeof(EnvMan), nameof(EnvMan.Awake))]
-        public static class EnvMan_Awake_Patch
+        [HarmonyPatch(typeof(EnvMan), nameof(EnvMan.FixedUpdate))]
+        public static class EnvMan_FixedUpdate_Patch
         {
+            /// <summary>The prefab's day length, captured before the first write so it can be put back.</summary>
+            private static long? _vanillaDayLengthSec;
+
             [UsedImplicitly]
-            private static void Postfix(ref EnvMan __instance)
+            private static void Prefix(EnvMan __instance)
             {
-                if (!Configuration.Current.Time.IsEnabled) return;
-                __instance.m_dayLengthSec = (long)Configuration.Current.Time.totalDayTimeInSeconds;
+                _vanillaDayLengthSec ??= __instance.m_dayLengthSec;
+                __instance.m_dayLengthSec = Configuration.Current.Time.IsEnabled
+                    ? (long)Configuration.Current.Time.totalDayTimeInSeconds
+                    : _vanillaDayLengthSec.Value;
             }
         }
 
