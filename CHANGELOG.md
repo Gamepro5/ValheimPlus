@@ -8,6 +8,69 @@ compatible; see the [release archive](https://github.com/Grantapher/ValheimPlus/
 for those notes.
 
 
+## 0.10.2.0 - Valheim 1.0.15 Compatibility and New Settings
+
+_Released 2026-09-19_
+
+### Patch Notes
+
+* New `FrigidKiln` section, covering production speed, ice capacity, ice used per product, auto deposit and auto fuel for the Frigid Kiln.
+* New `FrostFoundry` section, covering production speed, Frozen Fuel capacity, fuel used per item, and auto fuel for the Frost Foundry.
+* New `Building.noHeavySnowDamage` and `Building.noLavaDamage` settings, which stop heavy snow and lava from damaging your structures.
+* New `StructuralIntegrity.allowDismantlingOfBoatsAndCarts` setting, which lets player-built boats and carts be dismantled with the hammer.
+* `Oven` settings now only affect the oven, instead of every fuel-burning cooking station.
+* Fixes `Game.difficultyScaleRange` shrinking the difficulty radius to 2 meters whenever the `Game` section was enabled. Its default is now `100`, which matches the game.
+* Fixes `Time.totalDayTimeInSeconds` not taking effect on servers that sync their config, and not going back to the game's day length when the `Time` section is turned off.
+* Fixes errors on clients that have `Map.shareMapProgression` on while the server has it off.
+* Fixes the game hanging on Apple Silicon (arm64) when V+ re-applies its patches, such as after closing the settings window or joining a server.
+* Removes `Map.shareAllPins`, which has not done anything since the old V+ pin editor was retired.
+* Removes the V+ tutorial raven that appeared when spawning in.
+* Config sections are now listed alphabetically in the config file and in Configuration Manager.
+
+### Compatibility
+
+* ✅ - `Valheim 1.0.15 (n-40)` + `BepInExPack_Valheim 5.4.2350` + `ValheimPlus 0.10.2.0`
+* ⛔️ - Anything else
+
+### Detailed Patch Notes
+
+* Frigid Kiln
+    * The new `FrigidKiln` section has `productionSpeed` (default `30` seconds per Frozen Fuel), `maximumIce` (default `25`), `iceUsedPerProduct` (default `5`), plus `autoDeposit`, `autoFuel`, `ignorePrivateAreaCheck` and `autoRange`.
+* Frost Foundry
+    * The new `FrostFoundry` section has `productionSpeed` (default `50` seconds per item), `maximumFrozenFuel` (default `20`), `frozenFuelUsedPerProduct` (default `5`), plus `autoFuel`, `ignorePrivateAreaCheck` and `autoRange`.
+    * The Frost Foundry presents its item to the user to be interacted with, so there is no `autoDeposit` here.
+* Oven settings
+    * `Oven.infiniteFuel`, `Oven.autoFuel`, `Oven.autoRange` and `Oven.ignorePrivateAreaCheck` applied to every cooking station that burns fuel, not just the oven. Each one is now matched by piece, so the oven's settings only touch ovens, and the Frost Foundry uses the new `FrostFoundry` section.
+    * If you were using `Oven.autoFuel` or `Oven.infiniteFuel` to fuel something other than an oven, that no longer happens.
+* Heavy snow and lava damage
+    * Valheim 1.0 added two new wear sources for structures: heavy snow, and standing in lava. `Building.noWeatherDamage` only covers rain and water erosion, so neither could be turned off.
+    * `Building.noHeavySnowDamage` stops heavy snow from damaging structures, and also suppresses the damage puffs that went with it, so a structure that no longer takes the damage no longer shows it either.
+    * `Building.noLavaDamage` stops lava from damaging structures, and removes the lava contribution to the Ashlands damage shader.
+* Dismantling boats and carts
+    * `StructuralIntegrity.allowDismantlingOfBoatsAndCarts` lets you remove a player-built boat or cart with the hammer instead of having to destroy it.
+    * A vehicle is only removable when nobody is aboard the boat, nobody is pulling the cart, and its cargo is empty. The game's own checks still apply, so no-build zones and wards work as they always have.
+    * Only player-built vehicles qualify. Boats and carts that are part of the world are left alone.
+* `Game.difficultyScaleRange`
+    * Enabling the `Game` section ran the configured range through a `Math.Min(range, 2)`, so instead of using your setting the difficulty radius shrank to 2 meters and nearby players almost never counted. The setting is now used as written.
+    * The default was `200`, which did not match the game's `100`. It is now `100`, so enabling the section changes nothing on its own, and the setting is clamped to `1`-`20000`.
+* Day length and server config sync
+    * The day length was applied once, while `EnvMan` started up. On a server that syncs its config, that happened before the server's values arrived, so `Time.totalDayTimeInSeconds` was ignored. Turning the `Time` section off also left the previous value in place until the game was restarted.
+    * The day length is now kept in step with the config while the game runs, and the game's own day length is restored when the `Time` section is off.
+* Map sharing
+    * A client with `Map.shareMapProgression` on would send its map to a server that has map sharing off, and the server threw a `NullReferenceException` for every one of those messages. The server now ignores them.
+    * Map data is still only sent on your first spawn, not on every death.
+* Re-applying patches
+    * V+ rebuilds its patches whenever the settings change, for example when you close the settings window or join a server that syncs its config. That happens from inside a patched method, and re-patching rewrites methods in place, so the code was being swapped out from under a live call. On x64 that survived; on arm64 it hung the game.
+    * The rebuild now runs on the next frame instead, once the call that triggered it has finished.
+    * The ServerSync library that V+ bundles also has its own patches. Those are no longer torn out and re-applied along with the mod's, so a config package arriving from a server cannot pull out the transport that is delivering it.
+* `Map.shareAllPins`
+    * The pin sharing UI it belonged to was retired long ago, and the code left behind never shared anything, whatever the setting was set to. The setting, its RPC and the leftover UI bundle are gone.
+* Tutorial raven
+    * The V+ raven that popped up on spawn to ask for Patreon support has been removed.
+* Config file layout
+    * Sections are now written in alphabetical order, both in the config file and in Configuration Manager, which makes them easier to find. Your existing values are unaffected.
+
+
 ## 0.10.1.2 - Bug Fixes
 
 _Released 2026-09-14_
@@ -204,11 +267,6 @@ A few fixes changed behavior on purpose. Nothing here is a bug.
   game are kept instead of being reset to your configured number. `9` is the game's own limit.
 * `noWeatherDamage` covers rain only. 1.0 added other kinds of weather damage that it does not cover. These may
   be added later, which may come with a rename of the setting.
-
-### Contributors
-
-* @Bellian for reporting the crafting errors and finding the smelter fueling break.
-* @JF10R for PR contributing to this release.
 
 ### Compatibility
 
