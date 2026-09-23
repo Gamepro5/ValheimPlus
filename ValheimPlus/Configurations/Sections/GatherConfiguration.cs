@@ -25,6 +25,7 @@ namespace ValheimPlus.Configurations.Sections
         private ConfigEntry<float> blackwoodEntry;
         private ConfigEntry<float> flametalOreEntry;
         private ConfigEntry<float> proustitePowderEntry;
+        private ConfigEntry<float> softTissueEntry;
 
         public float wood => woodEntry.Value;
         public float fineWood => fineWoodEntry.Value;
@@ -45,6 +46,7 @@ namespace ValheimPlus.Configurations.Sections
         public float blackwood => blackwoodEntry.Value;
         public float flametalOre => flametalOreEntry.Value;
         public float proustitePowder => proustitePowderEntry.Value;
+        public float softTissue => softTissueEntry.Value;
 
         public override void Bind(ConfigFile config)
         {
@@ -88,6 +90,8 @@ namespace ValheimPlus.Configurations.Sections
                 "Ashlands");
             proustitePowderEntry = Bind(config, Section, "proustitePowder", 0f,
                 "Ashlands");
+            softTissueEntry = Bind(config, Section, "softTissue", 0f,
+                "Mistlands");
         }
     }
 }

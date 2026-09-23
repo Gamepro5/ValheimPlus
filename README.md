@@ -465,3 +465,4 @@ Please see [CONTRIBUTING.md](https://github.com/Grantapher/ValheimPlus/blob/main
 - Shawn - https://github.com/shawnwallace
 - Bellian - https://github.com/Bellian
 - JF10R - https://github.com/JF10R 
+- Gamepro5 - https://github.com/Gamepro5

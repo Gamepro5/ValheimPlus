@@ -53,6 +53,7 @@ namespace ValheimPlus.GameClasses
                     "Blackwood" => config.blackwood, // Ashwood
                     "FlametalOreNew" => config.flametalOre, // Flametal
                     "ProustitePowder" => config.proustitePowder, // Proustite Powder
+                    "SoftTissue" => config.softTissue,
                     _ => 1f
                 };
 
