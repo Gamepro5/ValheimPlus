@@ -1,0 +1,292 @@
+name: Release
+
+# Builds this fork and attaches the full set of packages to a DRAFT GitHub Release.
+#
+# Same three ways in as Modifile and BetterCharacterController:
+#   - Actions -> Release -> Run workflow, box left empty. The last release's patch number is
+#     bumped, the tag is made on the commit you ran it from, and you get a draft.
+#   - push a tag:            git tag 0.10.2.4 && git push origin 0.10.2.4
+#   - publish a release through the GitHub web UI
+#
+# ONE DELIBERATE DIFFERENCE from those two: the tag is NOT stamped into the assembly version.
+#
+# Server.enforceMod compares version strings between server and client, so this fork keeps
+# upstream's 0.10.2.0 on purpose - that is what lets someone on official ValheimPlus still
+# connect. Our own release numbering lives only in the git tag. The build is verified to still
+# report the upstream version, so a well-meaning bump cannot slip through unnoticed.
+#
+# Why this needs a game download: the project compiles against publicized assembly_valheim.dll
+# and friends, which cannot be committed to a public repo. The DEDICATED SERVER app (896660)
+# downloads with `login anonymous` and ships the same managed assemblies. No credentials.
+#
+# Upstream's dev setup assumes Windows - AssemblyPublicizer.exe and a client install - so two
+# things are reproduced here: the publicizer (a small Mono.Cecil tool in .github/tools) and a
+# VALHEIM_INSTALL shim, because the dedicated server ships valheim_server_Data where the project
+# expects valheim_Data.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+      - '[0-9]*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag. Leave blank to bump the last one.'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  VALHEIM_APPID: '896660'
+  # Must match the version upstream's bin/create_releases.sh packages against.
+  BEPINEX_VERSION: '5.4.2350'
+  HARMONYX_VERSION: '2.10.0'
+  ILREPACK_VERSION: '2.0.33'
+  NETFX_REFS_VERSION: '1.0.3'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            tag="${{ github.ref_name }}"
+            echo "releasing $tag (named by the trigger)"
+          else
+            asked="${{ inputs.tag }}"
+            if [ -n "$asked" ]; then
+              tag="$asked"
+            else
+              # Drafts included: this workflow only makes drafts, so skipping them would hand out
+              # the same number twice running.
+              last=$(gh release list --limit 1 --json tagName \
+                       --jq '.[0].tagName // "0.10.2.0"' 2>/dev/null || echo "0.10.2.0")
+              tag=$(echo "${last#v}" | awk -F. '{printf "%d.%d.%d.%d", $1, $2, $3, $4 + 1}')
+              echo "last release was '${last}', so this one is '${tag}'"
+            fi
+
+            git tag --force "$tag" "${{ github.sha }}"
+            git push --force origin "refs/tags/$tag"
+            echo "tagged ${{ github.sha }} as $tag"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install steamcmd
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lib32gcc-s1 curl unzip zip
+          mkdir -p ~/steamcmd
+          curl -sSfL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            | tar -xz -C ~/steamcmd
+
+      # Ask which build is current BEFORE downloading any depot, so the cache key describes the
+      # assemblies exactly. A stale cache would mean silently compiling against old game APIs.
+      - name: Resolve the current Valheim build id
+        id: valheim
+        run: |
+          set -euo pipefail
+          out=$(~/steamcmd/steamcmd.sh +login anonymous \
+                  +app_info_update 1 +app_info_print "$VALHEIM_APPID" +quit 2>/dev/null || true)
+          # The public branch's build id from the nested dump:
+          #   "branches" { "public" { "buildid" "25390671"
+          buildid=$(printf '%s' "$out" | awk '
+            /"branches"/             { inbranches = 1 }
+            inbranches && /"public"/ { inpublic = 1 }
+            inpublic && /"buildid"/  { match($0, /[0-9]+/)
+                                       print substr($0, RSTART, RLENGTH); exit }')
+          if [ -z "$buildid" ]; then
+            # Never key a cache on something unknown; expire daily instead of pinning stale refs.
+            buildid="unknown-$(date -u +%Y%m%d)"
+            echo "::warning::Could not read the Valheim build id; using cache key $buildid"
+          fi
+          echo "buildid=$buildid" >> "$GITHUB_OUTPUT"
+          echo "Valheim public build: $buildid"
+
+      - name: Cache the game's managed assemblies
+        id: cache-managed
+        uses: actions/cache@v4
+        with:
+          path: ~/valheim-managed
+          key: valheim-managed-${{ steps.valheim.outputs.buildid }}
+
+      - name: Download the dedicated server (anonymous)
+        if: steps.cache-managed.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          ~/steamcmd/steamcmd.sh +force_install_dir "$HOME/valheim-server" \
+            +login anonymous +app_update "$VALHEIM_APPID" validate +quit
+          # Only the managed assemblies are worth caching; the rest is ~1GB of assets.
+          mkdir -p ~/valheim-managed
+          cp "$HOME/valheim-server/valheim_server_Data/Managed/"*.dll ~/valheim-managed/
+          echo "cached $(ls ~/valheim-managed | wc -l) assemblies"
+
+      - name: Fetch BepInEx
+        run: |
+          set -euo pipefail
+          curl -sSfL -o /tmp/bepinex.zip \
+            "https://gcdn.thunderstore.io/live/repository/packages/denikson-BepInExPack_Valheim-${BEPINEX_VERSION}.zip"
+          unzip -q /tmp/bepinex.zip -d /tmp/bepinex
+          test -f /tmp/bepinex/BepInExPack_Valheim/BepInEx/core/BepInEx.dll
+
+      # Upstream's AssemblyPublicizer is a Windows .exe, so this does the same job with Mono.Cecil.
+      # Only the FILE name gains _publicized; the assembly identity is left alone, because these
+      # assemblies reference each other's types and renaming the identity breaks every shared type.
+      - name: Publicize the game assemblies
+        run: |
+          set -euo pipefail
+          cecil=/tmp/bepinex/BepInExPack_Valheim/BepInEx/core/Mono.Cecil.dll
+          test -f "$cecil"
+          dotnet build -c Release .github/tools/publicizer/publicizer.csproj \
+            -p:CecilPath="$cecil" -o /tmp/publicizer -v q --nologo
+          mkdir -p "$HOME/vinstall/valheim_Data/Managed/publicized_assemblies"
+          dotnet /tmp/publicizer/publicizer.dll \
+            "$HOME/vinstall/valheim_Data/Managed/publicized_assemblies" \
+            ~/valheim-managed/assembly_valheim.dll \
+            ~/valheim-managed/assembly_utils.dll \
+            ~/valheim-managed/assembly_guiutils.dll
+
+      # The project wants a client-shaped install: valheim_Data, not valheim_server_Data.
+      - name: Build the VALHEIM_INSTALL shim
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/vinstall/valheim_Data/Managed" "$HOME/vinstall/BepInEx/core"
+          cp ~/valheim-managed/*.dll "$HOME/vinstall/valheim_Data/Managed/"
+          cp /tmp/bepinex/BepInExPack_Valheim/BepInEx/core/BepInEx.dll "$HOME/vinstall/BepInEx/core/"
+          ls "$HOME/vinstall/valheim_Data/Managed/publicized_assemblies"
+
+      # The project is an old-style csproj using packages.config, and there is no nuget CLI on the
+      # runner, so the two packages it resolves by exact path are unpacked by hand. net48 reference
+      # assemblies are needed too: TargetFrameworkVersion is v4.8 and dotnet ships none.
+      - name: Fetch build dependencies
+        run: |
+          set -euo pipefail
+          get() {
+            local id="$1" ver="$2" dest="$3" low
+            low=$(echo "$id" | tr 'A-Z' 'a-z')
+            curl -sSfL -o /tmp/pkg.nupkg \
+              "https://api.nuget.org/v3-flatcontainer/$low/$ver/$low.$ver.nupkg"
+            mkdir -p "$dest"
+            ( cd "$dest" && unzip -qo /tmp/pkg.nupkg )
+          }
+          get HarmonyX "$HARMONYX_VERSION" "packages/HarmonyX.$HARMONYX_VERSION"
+          get ILRepack.Lib.MSBuild.Task "$ILREPACK_VERSION" "packages/ILRepack.Lib.MSBuild.Task.$ILREPACK_VERSION"
+          get Microsoft.NETFramework.ReferenceAssemblies.net48 "$NETFX_REFS_VERSION" /tmp/refasm
+          test -f "packages/HarmonyX.$HARMONYX_VERSION/lib/net45/0Harmony.dll"
+          test -f "packages/ILRepack.Lib.MSBuild.Task.$ILREPACK_VERSION/build/ILRepack.Lib.MSBuild.Task.targets"
+
+      # Note what is NOT here: stamping the tag into ValheimPlus.cs. See the header - the assembly
+      # keeps upstream's version so enforceMod still matches official ValheimPlus.
+      - name: Build
+        env:
+          VALHEIM_INSTALL: /home/runner/vinstall
+        run: |
+          set -euo pipefail
+          dotnet msbuild ValheimPlus/ValheimPlus.csproj \
+            /p:Configuration=Release \
+            /p:TargetFrameworkRootPath=/tmp/refasm/build/ \
+            /v:minimal /nologo
+          test -f ValheimPlus/bin/Release/ValheimPlus.dll
+
+      # Checks each string in the heap it actually lives in, and checks the PREFAB NAME rather than
+      # just the config key - a build once shipped where the key was present and matched nothing.
+      - name: Verify the built assembly
+        run: python3 .github/verify-build.py ValheimPlus/bin/Release/ValheimPlus.dll
+
+      # Upstream's own packaging script, so the archives are laid out exactly like an official
+      # release. Three things stop it running unattended, all fixed in a temp copy so the tree
+      # stays clean: it points at a Windows bin\Debug path, it prompts, and it resolves its output
+      # directories with plain realpath, which fails on a path that does not exist yet.
+      - name: Package
+        run: |
+          set -euo pipefail
+          version=$(grep "public const string NumericVersion" ValheimPlus/ValheimPlus.cs | cut -f2 -d'"')
+          extra=$(grep "private const string VersionExtra" ValheimPlus/ValheimPlus.cs | cut -f2 -d'"')
+          mkdir -p "release/${version}${extra}" release/temp
+
+          patched=$(mktemp)
+          sed -e 's|VALHEIM_PLUS_DLL="ValheimPlus\\bin\\Debug\\ValheimPlus.dll"|VALHEIM_PLUS_DLL="ValheimPlus/bin/Release/ValheimPlus.dll"|' \
+              -e 's|^    read -p "Proceed? \[y/n\] " yn$|    yn=y|' \
+              bin/create_releases.sh > "$patched"
+          grep -q 'bin/Release/ValheimPlus.dll' "$patched" \
+            || { echo "::error::Could not rewrite the DLL path - upstream's script must have changed."; exit 1; }
+
+          bash "$patched"
+
+          mkdir -p dist
+          cp "release/${version}${extra}"/* dist/
+          ( cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt )
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish draft
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Always a draft. A release is public the moment it exists, and this one replaces people's
+      # ValheimPlus.dll - a bad build cannot be unpublished from whoever already pulled it.
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            echo "updated the assets on $TAG"
+          else
+            gh release create "$TAG" dist/* \
+              --title "ValheimPlus $TAG" \
+              --generate-notes \
+              --draft
+            echo "created draft release $TAG"
+          fi
