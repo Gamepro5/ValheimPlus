@@ -10,6 +10,7 @@ namespace ValheimPlus.Configurations.Sections
         private ConfigEntry<bool> inventoryFillTopToBottomEntry;
         private ConfigEntry<bool> mergeWithExistingStacksEntry;
         private ConfigEntry<int> playerInventoryRowsEntry;
+        private ConfigEntry<int> extraPlayerInventoryRowsEntry;
         private ConfigEntry<int> woodChestColumnsEntry;
         private ConfigEntry<int> woodChestRowsEntry;
         private ConfigEntry<int> personalChestColumnsEntry;
@@ -27,6 +28,21 @@ namespace ValheimPlus.Configurations.Sections
 
         public bool inventoryFillTopToBottom => inventoryFillTopToBottomEntry.Value;
         public bool mergeWithExistingStacks => mergeWithExistingStacksEntry.Value;
+        /// <summary>
+        /// Rows added on top of however many the game gives you, rather than a floor to raise
+        /// them to. Needed because the game's own rows can be earned incrementally - the trader
+        /// sells an increment, which `playerInventoryRows` as a floor silently absorbs until the
+        /// purchases exceed it.
+        /// </summary>
+        public int extraPlayerInventoryRows
+        {
+            get => Math.Min(5, Math.Max(0, extraPlayerInventoryRowsEntry.Value));
+            internal set => extraPlayerInventoryRowsEntry.Value = value;
+        }
+
+        /// <summary>True when this section should size the player inventory at all.</summary>
+        public bool changesPlayerInventoryRows => playerInventoryRows > 4 || extraPlayerInventoryRows > 0;
+
         public int playerInventoryRows
         {
             get => Math.Min(9, Math.Max(4, playerInventoryRowsEntry.Value));
@@ -57,6 +73,8 @@ namespace ValheimPlus.Configurations.Sections
                 "By default items go to their original position when picking up your tombstone.\nSet to true to make all stacks try to merge with an existing stack first.");
             playerInventoryRowsEntry = Bind(config, Section, "playerInventoryRows", 4, 4, 9,
                 "Minimum number of player inventory rows. Your inventory uses this value or the rows the game gives you, whichever is larger. Lowering it never takes away rows the game has added.");
+            extraPlayerInventoryRowsEntry = Bind(config, Section, "extraPlayerInventoryRows", 0, 0, 5,
+                "Rows ADDED to however many the game gives you, rather than a floor like playerInventoryRows.\nUse this when the game can grant rows itself: the trader sells an increment, and a floor absorbs those purchases invisibly until they exceed it, so buying appears to do nothing. Added on top, a purchase always shows up.\nThe total is still capped at 9 rows, which is the game's own limit.");
             woodChestColumnsEntry = Bind(config, Section, "woodChestColumns", 5, 3, 8,
                 "Wood chest number of columns\n(default 5, 3 min, 8 max)");
             woodChestRowsEntry = Bind(config, Section, "woodChestRows", 2, 2, 10,

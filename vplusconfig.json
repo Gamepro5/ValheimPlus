@@ -1351,6 +1351,11 @@
 				"defaultValue": "4",
 				"defaultType": "int"
 			},
+			"extraPlayerInventoryRows": {
+				"description": "Rows added on top of however many the game gives you, rather than a floor. Use this where the game can grant rows itself, so those still count. Capped at 9 rows total.",
+				"defaultValue": "0",
+				"defaultType": "int"
+			},
 			"woodChestColumns": {
 				"description": "Wood chest number of columns",
 				"defaultValue": "5",

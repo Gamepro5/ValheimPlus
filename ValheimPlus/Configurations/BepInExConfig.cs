@@ -231,7 +231,9 @@ namespace ValheimPlus.Configurations
         internal static void ResolveModConflicts()
         {
             var configuredRows = Configuration.Current.Inventory.playerInventoryRows;
-            if (Configuration.Current.Inventory.IsEnabled && configuredRows > 4)
+            // Extra rows conflict with those mods for the same reason a raised floor does.
+            if (Configuration.Current.Inventory.IsEnabled
+                && Configuration.Current.Inventory.changesPlayerInventoryRows)
             {
                 if (Chainloader.PluginInfos.ContainsKey(EquipmentAndQuickSlotsGuid))
                 {
@@ -240,7 +242,11 @@ namespace ValheimPlus.Configurations
                         "which conflicts with Equipment and Quick Slots. Use that mod's " +
                         "\"Extra Inventory Rows\" setting instead.",
                         "4",
-                        () => Configuration.Current.Inventory.playerInventoryRows = 4);
+                        () =>
+                        {
+                            Configuration.Current.Inventory.playerInventoryRows = 4;
+                            Configuration.Current.Inventory.extraPlayerInventoryRows = 0;
+                        });
                 }
 
                 if (Chainloader.PluginInfos.ContainsKey(ExtraSlotsGuid))
@@ -250,7 +256,11 @@ namespace ValheimPlus.Configurations
                         "which conflicts with Extra Slots. Use that mod's " +
                         "\"Extra slots\" setting instead.",
                         "4",
-                        () => Configuration.Current.Inventory.playerInventoryRows = 4);
+                        () =>
+                        {
+                            Configuration.Current.Inventory.playerInventoryRows = 4;
+                            Configuration.Current.Inventory.extraPlayerInventoryRows = 0;
+                        });
                 }
             }
         }

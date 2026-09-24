@@ -64,7 +64,7 @@ namespace ValheimPlus.GameClasses
         [UsedImplicitly]
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            if (!Configuration.Current.Inventory.IsEnabled || Configuration.Current.Inventory.playerInventoryRows <= 4)
+            if (!Configuration.Current.Inventory.IsEnabled || !Configuration.Current.Inventory.changesPlayerInventoryRows)
             {
                 return instructions;
             }
@@ -90,10 +90,30 @@ namespace ValheimPlus.GameClasses
             }
         }
 
-        /// <summary>The configured rows, or the game's own count when that is larger.</summary>
+        /// <summary>
+        /// The row count to actually use: the configured floor or the game's own count, whichever
+        /// is larger, plus any extra rows, capped at the game's own limit of 9.
+        ///
+        /// The extra is what lets rows the game grants itself still count for something. The
+        /// trader sells an INCREMENT to the character's own "invrows", so with only a floor a
+        /// purchase raising 4 to 5 is invisible while the floor sits at 6. Added on top, it shows.
+        ///
+        /// Never returns fewer rows than it was given, because shrinking a loaded inventory drops
+        /// whatever sat in the rows that went away.
+        ///
+        /// Only ever called from the transpiler, i.e. on the value Player.SetInventorySize was
+        /// given, which is the game's own count. That is what keeps it idempotent: "invrows" is
+        /// never written with our total (the save between the two sizing calls is left alone), and
+        /// Inventory.Save does not persist the height, so the count this sees is always the
+        /// character's real one rather than a previously extended figure.
+        /// </summary>
         public static int AtLeastConfigured(int rows)
         {
-            return Math.Max(rows, Configuration.Current.Inventory.playerInventoryRows);
+            var inventory = Configuration.Current.Inventory;
+            int wanted = Math.Max(rows, inventory.playerInventoryRows) + inventory.extraPlayerInventoryRows;
+            // 9 is the game's cap in Player.SetInventorySize; going past it gives rows the GUI
+            // cannot show and the character file will not keep.
+            return Math.Max(rows, Math.Min(9, wanted));
         }
     }
 
@@ -105,18 +125,39 @@ namespace ValheimPlus.GameClasses
     [HarmonyPatch(typeof(Player), nameof(Player.Load))]
     public static class Player_Load_InventorySize_Patch
     {
+        /// <summary>
+        /// The character's own row count: the "invrows" key the game reads on spawn, or 4 when it
+        /// has none, which is what the game itself falls back to. Deliberately not the inventory's
+        /// height, which may already have been extended.
+        /// </summary>
+        private static int CharacterRows(Player player)
+        {
+            return player.TryGetUniqueKeyValue("invrows", out string value)
+                   && int.TryParse(value, out int rows)
+                ? rows
+                : 4;
+        }
+
         [UsedImplicitly]
         public static void Prefix(Player __instance)
         {
-            if (!Configuration.Current.Inventory.IsEnabled || Configuration.Current.Inventory.playerInventoryRows <= 4)
+            if (!Configuration.Current.Inventory.IsEnabled || !Configuration.Current.Inventory.changesPlayerInventoryRows)
             {
                 return;
             }
             if (__instance == null) return;
 
             // Height only, and no GUI, which is sized on spawn once InventoryGui exists.
+            // Size to the FULL count, computed from the character's own row count rather than from
+            // the inventory's current height. Both halves of that matter:
+            //
+            //   * full count, not just the floor: this runs before the items load, and anything
+            //     below the bottom row at that moment is dropped rather than loaded. Sizing to
+            //     only the floor would lose items out of the rows the extra provides.
+            //   * from "invrows", not GetHeight(): reading the current height and adding to it
+            //     would compound every time something re-sized the inventory.
             var inventory = __instance.GetInventory();
-            int rows = Configuration.Current.Inventory.playerInventoryRows;
+            int rows = Player_SetInventorySize_Patch.AtLeastConfigured(CharacterRows(__instance));
             if (inventory.GetHeight() < rows) inventory.SetHeight(rows);
         }
     }
@@ -131,7 +172,7 @@ namespace ValheimPlus.GameClasses
         [UsedImplicitly]
         public static void Postfix(Player __instance)
         {
-            if (!Configuration.Current.Inventory.IsEnabled || Configuration.Current.Inventory.playerInventoryRows <= 4)
+            if (!Configuration.Current.Inventory.IsEnabled || !Configuration.Current.Inventory.changesPlayerInventoryRows)
             {
                 return;
             }
@@ -139,6 +180,9 @@ namespace ValheimPlus.GameClasses
 
             // Size directly, since SetInventorySize would save the config value as the character's own.
             // Basically call Player SetInventorySize but just what we need.
+            // Floor only, for the same reason as in Load: by now SetInventorySize has already
+            // applied the extra rows, and this must not add them again. Taking the larger of the
+            // two also means this can never shrink an inventory that is already the right size.
             var inventory = __instance.GetInventory();
             int rows = Math.Max(inventory.GetHeight(), Configuration.Current.Inventory.playerInventoryRows);
             inventory.SetHeight(rows);
