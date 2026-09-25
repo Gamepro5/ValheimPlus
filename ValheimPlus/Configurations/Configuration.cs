@@ -4,6 +4,7 @@ namespace ValheimPlus.Configurations
 {
     public class Configuration
     {
+        public HonorableCombatConfiguration HonorableCombat { get; set; }
         public static Configuration Current { get; set; }
         public AdvancedBuildingModeConfiguration AdvancedBuildingMode { get; set; }
         public AdvancedEditingModeConfiguration AdvancedEditingMode { get; set; }

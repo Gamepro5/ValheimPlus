@@ -168,4 +168,61 @@ namespace ValheimPlus.GameClasses
             if (growup) ProcreationHelpers.AddGrowupInformation(__instance, growup, ref __result);
         }
     }
+    /// <summary>
+    /// Honorable combat: a killing blow from another player is reduced so it cannot kill, and the
+    /// player who would have died drops out of PvP.
+    ///
+    /// Nothing has to be saved and restored, because death never happens. Character.CheckDeath is
+    /// simply "if (GetHealth() > 0) return; ... OnDeath()", so a blow that never reaches zero
+    /// produces no tombstone, no dropped gear and no skill loss, and leaves food and buffs running.
+    ///
+    /// A PREFIX that shrinks the incoming hit, rather than a postfix that heals afterwards the way
+    /// the tamed-creature "essential" mortality above does. A postfix runs after SetHealth and after
+    /// the death check, so by then OnDeath has already fired; healing back up would leave a corpse
+    /// and a tombstone behind. Catching it beforehand is the only way to keep the gear.
+    ///
+    /// Runs on the victim's own client. Damage is applied by the owner of the character being hit -
+    /// the attacker's client sends RPC_Damage to it - so this is each player deciding not to die,
+    /// which is also why it only means anything among people who trust each other.
+    ///
+    /// Switching the loser's PvP off is enough to end the fight: Player.SetPVP writes ZDOVars.s_pvp
+    /// as well as the local field, so the flag reaches the other client, and Character.RPC_Damage
+    /// refuses player damage against a character that is not PvP enabled.
+    /// </summary>
+    [HarmonyPatch(typeof(Character), nameof(Character.ApplyDamage))]
+    public static class Character_ApplyDamage_HonorableCombat_Patch
+    {
+        [UsedImplicitly]
+        public static void Prefix(Character __instance, HitData hit)
+        {
+            var config = Configuration.Current.HonorableCombat;
+            if (!config.IsEnabled || hit == null) return;
+
+            // Only ever our own character: whoever owns a character decides its health.
+            if (!(__instance is Player victim)) return;
+            if (!Player.m_localPlayerExists || victim != Player.m_localPlayer) return;
+            if (!victim.IsPVPEnabled()) return;
+
+            // A creature, a fall, drowning, or a hit with no attributable attacker still kills.
+            Character attacker = hit.GetAttacker();
+            if (attacker == null || !attacker.IsPlayer() || attacker == __instance) return;
+            if (!attacker.IsPVPEnabled()) return;
+
+            float floor = Mathf.Max(1f, config.minimumHealth);
+            float health = victim.GetHealth();
+            float damage = hit.GetTotalDamage();
+
+            // Survivable as it stands: leave it completely alone, damage numbers included.
+            if (health - damage > floor) return;
+
+            // Scale the blow to leave exactly the floor, rather than assigning a single damage
+            // value, so it stays spread across its damage types and resistances still read right.
+            float allowed = Mathf.Max(0f, health - floor);
+            hit.ApplyModifier(damage > 0f ? allowed / damage : 0f);
+
+            // Ends the fight. This reaches the attacker's client through the ZDO, and RPC_Damage
+            // rejects player damage against a character whose PvP is off.
+            victim.SetPVP(false);
+        }
+    }
 }

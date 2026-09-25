@@ -203,6 +203,7 @@
     <Compile Include="Configurations\Sections\WagonConfiguration.cs" />
     <Compile Include="Configurations\Sections\WardConfiguration.cs" />
     <Compile Include="Configurations\Sections\StructuralIntegrityConfiguration.cs" />
+    <Compile Include="Configurations\Sections\HonorableCombatConfiguration.cs" />
     <Compile Include="Configurations\Sections\HudConfiguration.cs" />
     <Compile Include="Configurations\Sections\ExperienceConfiguration.cs" />
     <Compile Include="Configurations\Sections\CameraConfiguration.cs" />

@@ -2746,5 +2746,22 @@
 				"defaultType": "bool"
 			}
 		}
+	},
+	"HonorableCombat": {
+		"description": "",
+		"icon": "fa fa-handshake",
+		"description_website": "Duel other players without losing anything.",
+		"entries": {
+			"enabled": {
+				"description": "A blow from another player that would kill you instead leaves you alive and switches your PvP off. Nothing is lost, because you never actually die. Only applies between two players who both have PvP on.",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"minimumHealth": {
+				"description": "Health you are left with after yielding.",
+				"defaultValue": "1",
+				"defaultType": "float"
+			}
+		}
 	}
 }
