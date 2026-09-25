@@ -206,7 +206,17 @@ namespace ValheimPlus.GameClasses
             // A creature, a fall, drowning, or a hit with no attributable attacker still kills.
             Character attacker = hit.GetAttacker();
             if (attacker == null || !attacker.IsPlayer() || attacker == __instance) return;
-            if (!attacker.IsPVPEnabled()) return;
+
+            // Deliberately NOT checking the attacker's PvP flag. Character.RPC_Damage gates player
+            // damage on the VICTIM's flag alone:
+            //
+            //     if (IsPlayer() && !IsPVPEnabled() && attacker != null && attacker.IsPlayer())
+            //         return;
+            //
+            // so an unflagged player can damage a flagged one. Requiring the attacker to be flagged
+            // as well was stricter than the game's own rule, and meant no protection whenever the
+            // other player's flag was off - or simply had not replicated to us yet, since for a
+            // remote player IsPVPEnabled reads it out of their ZDO.
 
             float floor = Mathf.Max(1f, config.minimumHealth);
             float health = victim.GetHealth();
@@ -225,6 +235,12 @@ namespace ValheimPlus.GameClasses
             victim.SetPVP(false);
 
             if (config.clearDamageOverTime) ClearDamageOverTime(victim);
+
+            // A rare, deliberate event, so worth a line: it is the only way to tell "it worked"
+            // from "the patch never ran" without attaching a debugger to a live duel.
+            ValheimPlusPlugin.Logger.LogInfo(
+                $"HonorableCombat: yielded to {attacker.GetHoverName()} on a blow of {damage:F0} " +
+                $"at {health:F0} health, left at {floor:F0}. PvP switched off.");
         }
 
         /// <summary>
