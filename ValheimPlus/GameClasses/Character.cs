@@ -223,6 +223,36 @@ namespace ValheimPlus.GameClasses
             // Ends the fight. This reaches the attacker's client through the ZDO, and RPC_Damage
             // rejects player damage against a character whose PvP is off.
             victim.SetPVP(false);
+
+            if (config.clearDamageOverTime) ClearDamageOverTime(victim);
+        }
+
+        /// <summary>
+        /// Removes burning and poison, and nothing else.
+        ///
+        /// Being saved on a sliver of health only to burn to death a second later would lose the
+        /// gear anyway, which defeats the point. These two are also the damage-over-time effects a
+        /// player can actually inflict - fire, spirit and poison. Smoke and puking are left alone
+        /// because they are environmental rather than part of the fight, and standing in smoke would
+        /// simply re-apply it.
+        ///
+        /// Deliberately NOT a blanket clear of every status effect: food, rested and buffs are the
+        /// things this feature exists to preserve.
+        /// </summary>
+        private static void ClearDamageOverTime(Character victim)
+        {
+            SEMan seman = victim.GetSEMan();
+            if (seman == null) return;
+
+            List<StatusEffect> effects = seman.GetStatusEffects();
+            if (effects == null) return;
+
+            // GetStatusEffects hands back SEMan's live list, so it has to be copied before
+            // removing anything - mutating it while iterating throws.
+            foreach (StatusEffect se in effects.ToList())
+            {
+                if (se is SE_Burning || se is SE_Poison) seman.RemoveStatusEffect(se, true);
+            }
         }
     }
 }
