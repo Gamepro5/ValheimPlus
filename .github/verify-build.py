@@ -25,7 +25,7 @@ import sys
 BASE_VERSION = "0.10.2.0"
 
 # Config entries -> bound by name, so they reach the file as identifiers (UTF-8).
-CONFIG_KEYS = ("softTissue", "extraPlayerInventoryRows")
+CONFIG_KEYS = ("softTissue", "extraPlayerInventoryRows", "eitrRegen")
 
 # Prefab names compared in a switch -> IL string literals (UTF-16). "Softtissue" has a lowercase
 # t and lives under Items/consumables; "SoftTissue" is the material/texture folder and is the

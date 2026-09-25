@@ -34,6 +34,12 @@ namespace ValheimPlus.GameClasses
                 __instance.m_swimStaminaDrainMaxSkill = Helper.applyModifierValue(__instance.m_swimStaminaDrainMaxSkill, Configuration.Current.Stamina.swimStaminaDrain);
                 __instance.m_jumpStaminaUsage = Helper.applyModifierValue(__instance.m_jumpStaminaUsage, Configuration.Current.Stamina.jumpStaminaDrain);
             }
+            if (Configuration.Current.Eitr.IsEnabled)
+            {
+                // m_eiterRegen, not m_eitrRegen: the game's own field carries that typo.
+                __instance.m_eiterRegen = Helper.applyModifierValue(__instance.m_eiterRegen, Configuration.Current.Eitr.eitrRegen);
+                __instance.m_eitrRegenDelay = Helper.applyModifierValue(__instance.m_eitrRegenDelay, Configuration.Current.Eitr.eitrRegenDelay);
+            }
             if (Configuration.Current.Player.IsEnabled)
             {
                 __instance.m_autoPickupRange = Configuration.Current.Player.baseAutoPickUpRange;

@@ -20,6 +20,7 @@ namespace ValheimPlus.Configurations
         public DurabilityConfiguration Durability { get; set; }
         public EggConfiguration Egg { get; set; }
         public EitrRefineryConfiguration EitrRefinery { get; set; }
+        public EitrConfiguration Eitr { get; set; }
         public EitrUsageConfiguration EitrUsage { get; set; }
         public ExperienceConfiguration Experience { get; set; }
         public FermenterConfiguration Fermenter { get; set; }

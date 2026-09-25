@@ -502,6 +502,30 @@
 			}
 		}
 	},
+	"Eitr": {
+		"description": "",
+		"icon": "fa fa-hat-wizard",
+		"description_website": "Change how quickly eitr regenerates.",
+		"entries": {
+			"enabled": {
+				"description": "Change false to true to enable this section",
+				"defaultValue": "false",
+				"defaultType": "bool"
+			},
+			"eitrRegen": {
+				"description": "The value 100 makes eitr regenerate twice as fast. The value -50 makes it half as fast.",
+				"defaultValue": "0",
+				"defaultType": "float",
+				"modifier": "true"
+			},
+			"eitrRegenDelay": {
+				"description": "The value -50 halves the wait before eitr starts regenerating after being spent.",
+				"defaultValue": "0",
+				"defaultType": "float",
+				"modifier": "true"
+			}
+		}
+	},
 	"EitrUsage": {
 		"description": "",
 		"icon": "fa fa-tools",
